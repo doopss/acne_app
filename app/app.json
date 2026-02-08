@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Clear Skin",
+    "slug": "clear-skin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FDFCFB"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.clearskin.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Clear Skin needs camera access to analyze your skin and provide personalized recommendations.",
+        "NSPhotoLibraryUsageDescription": "Clear Skin needs photo library access to let you select existing photos for skin analysis."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FDFCFB"
+      },
+      "package": "com.clearskin.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Clear Skin to access your camera for skin analysis."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Clear Skin to access your photos for skin analysis."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-eas-project-id"
+      }
+    }
+  }
+}
