@@ -218,7 +218,7 @@ export function ProfileScreen({ navigation }: Props) {
             <Text style={styles.premiumDescription}>
               Get unlimited scans, detailed reports, and personalized routine builder
             </Text>
-            <Button title="Learn More" variant="secondary" />
+            <Button title="Learn More" variant="secondary" onPress={() => {}} />
           </Card>
         )}
 

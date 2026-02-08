@@ -75,7 +75,7 @@ export function CameraScreen({ navigation }: Props) {
     try {
       // Read image as base64
       const base64Image = await FileSystem.readAsStringAsync(capturedImage, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       // Upload image to Supabase Storage

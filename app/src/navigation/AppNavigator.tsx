@@ -148,7 +148,7 @@ export function AppNavigator() {
             />
             <RootStack.Screen 
               name="Results" 
-              component={ResultsScreen}
+              component={ResultsScreen as any}
               options={{
                 headerShown: true,
                 headerTitle: 'Analysis Results',
