@@ -1,121 +1,80 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
-import { useAuth } from '../lib/auth';
+import { storage, StoredAnalysis } from '../lib/storage';
 import {
-  SignInScreen,
-  SignUpScreen,
-  OnboardingScreen,
+  SplashScreen,
+  Onboarding1Screen,
+  Onboarding2Screen,
+  Onboarding3Screen,
+  Onboarding4Screen,
+  PaywallScreen,
   HomeScreen,
   CameraScreen,
-  ResultsScreen,
-  ProgressScreen,
-  ProfileScreen,
+  AnalyzingScreen,
+  FeedbackScreen,
+  FeedbackDetailedScreen,
+  ProductsScreen,
 } from '../screens';
 import { colors } from '../styles/theme';
 
-// Stack Navigator Types
+// Type definitions
 export type RootStackParamList = {
-  Auth: undefined;
-  Onboarding: undefined;
-  Main: undefined;
-  Camera: undefined;
-  Results: { analysisId: string; scrollTo?: string };
-};
-
-export type AuthStackParamList = {
-  SignIn: undefined;
-  SignUp: undefined;
-  ForgotPassword: undefined;
-};
-
-export type MainTabParamList = {
+  // Onboarding flow
+  Splash: undefined;
+  Onboarding1: undefined;
+  Onboarding2: undefined;
+  Onboarding3: undefined;
+  Onboarding4: undefined;
+  Paywall: undefined;
+  // Main app flow
   Home: undefined;
-  Progress: undefined;
-  Profile: undefined;
+  Camera: undefined;
+  Analyzing: { photoUri: string };
+  Feedback: { analysisData: StoredAnalysis };
+  FeedbackDetailed: { analysisData: StoredAnalysis };
+  Products: { analysisData: StoredAnalysis };
 };
 
-const RootStack = createNativeStackNavigator<RootStackParamList>();
-const AuthStack = createNativeStackNavigator<AuthStackParamList>();
-const MainTab = createBottomTabNavigator<MainTabParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function AuthNavigator() {
-  return (
-    <AuthStack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <AuthStack.Screen name="SignIn" component={SignInScreen} />
-      <AuthStack.Screen name="SignUp" component={SignUpScreen} />
-    </AuthStack.Navigator>
-  );
-}
-
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return (
-    <View style={{ opacity: focused ? 1 : 0.6 }}>
-      <Text style={{ fontSize: 24 }}>{emoji}</Text>
-    </View>
-  );
-}
-
-function MainNavigator() {
-  return (
-    <MainTab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.white,
-          borderTopColor: colors.lightGray,
-          borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 80,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.gray,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
-      }}
-    >
-      <MainTab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
-        }}
-      />
-      <MainTab.Screen
-        name="Progress"
-        component={ProgressScreen}
-        options={{
-          tabBarLabel: 'Progress',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
-        }}
-      />
-      <MainTab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
-        }}
-      />
-    </MainTab.Navigator>
-  );
-}
+type AppState = {
+  isLoading: boolean;
+  hasSeenOnboarding: boolean;
+  hasPurchased: boolean;
+};
 
 export function AppNavigator() {
-  const { session, profile, loading } = useAuth();
+  const [appState, setAppState] = useState<AppState>({
+    isLoading: true,
+    hasSeenOnboarding: false,
+    hasPurchased: false,
+  });
 
-  if (loading) {
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        const { hasSeenOnboarding, hasPurchased } = await storage.getAppState();
+        setAppState({
+          isLoading: false,
+          hasSeenOnboarding,
+          hasPurchased,
+        });
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        setAppState({
+          isLoading: false,
+          hasSeenOnboarding: false,
+          hasPurchased: false,
+        });
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  if (appState.isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -123,45 +82,120 @@ export function AppNavigator() {
     );
   }
 
-  // Determine if user needs onboarding
-  const needsOnboarding = session && profile && !profile.pain_point && !profile.skin_type;
+  // Determine initial route based on app state
+  const getInitialRoute = (): keyof RootStackParamList => {
+    if (!appState.hasSeenOnboarding) {
+      return 'Splash';
+    }
+    if (!appState.hasPurchased) {
+      return 'Paywall';
+    }
+    return 'Home';
+  };
 
   return (
     <NavigationContainer>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {!session ? (
-          // Not logged in
-          <RootStack.Screen name="Auth" component={AuthNavigator} />
-        ) : needsOnboarding ? (
-          // Logged in but hasn't completed onboarding
-          <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : (
-          // Logged in and completed onboarding
-          <>
-            <RootStack.Screen name="Main" component={MainNavigator} />
-            <RootStack.Screen 
-              name="Camera" 
-              component={CameraScreen}
-              options={{
-                presentation: 'fullScreenModal',
-              }}
-            />
-            <RootStack.Screen 
-              name="Results" 
-              component={ResultsScreen as any}
-              options={{
-                headerShown: true,
-                headerTitle: 'Analysis Results',
-                headerBackTitle: 'Back',
-                headerTintColor: colors.primary,
-                headerStyle: {
-                  backgroundColor: colors.background,
-                },
-              }}
-            />
-          </>
-        )}
-      </RootStack.Navigator>
+      <Stack.Navigator
+        initialRouteName={getInitialRoute()}
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        {/* Onboarding Flow */}
+        <Stack.Screen 
+          name="Splash" 
+          component={SplashScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Stack.Screen 
+          name="Onboarding1" 
+          component={Onboarding1Screen}
+        />
+        <Stack.Screen 
+          name="Onboarding2" 
+          component={Onboarding2Screen}
+        />
+        <Stack.Screen 
+          name="Onboarding3" 
+          component={Onboarding3Screen}
+        />
+        <Stack.Screen 
+          name="Onboarding4" 
+          component={Onboarding4Screen}
+        />
+        <Stack.Screen 
+          name="Paywall" 
+          component={PaywallScreen}
+          options={{ gestureEnabled: false }}
+        />
+
+        {/* Main App Flow */}
+        <Stack.Screen 
+          name="Home" 
+          component={HomeScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Stack.Screen 
+          name="Camera" 
+          component={CameraScreen}
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen 
+          name="Analyzing" 
+          component={AnalyzingScreen}
+          options={{
+            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen 
+          name="Feedback" 
+          component={FeedbackScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Your Results',
+            headerBackTitle: 'Back',
+            headerTintColor: colors.primary,
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen 
+          name="FeedbackDetailed" 
+          component={FeedbackDetailedScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Detailed Analysis',
+            headerBackTitle: 'Back',
+            headerTintColor: colors.primary,
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen 
+          name="Products" 
+          component={ProductsScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Products',
+            headerBackTitle: 'Back',
+            headerTintColor: colors.primary,
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerShadowVisible: false,
+          }}
+        />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }

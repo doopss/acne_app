@@ -1,18 +1,59 @@
 import 'react-native-url-polyfill/auto';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+// Validate environment variables and log warnings if missing
+if (!supabaseUrl || supabaseUrl.trim() === '') {
+  console.warn(
+    '⚠️ Supabase URL is missing! Set EXPO_PUBLIC_SUPABASE_URL in your .env file.'
+  );
+}
+
+if (!supabaseAnonKey || supabaseAnonKey.trim() === '') {
+  console.warn(
+    '⚠️ Supabase Anon Key is missing! Set EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file.'
+  );
+}
+
+// Flag to track if Supabase is properly configured
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
+);
+
+// Helper to verify Supabase connection
+export const verifySupabaseConnection = async (): Promise<boolean> => {
+  if (!isSupabaseConfigured) {
+    return false;
+  }
+  
+  try {
+    const { error } = await supabase.from('user_profiles').select('id').limit(1);
+    // Auth errors are ok (means connection works but no access)
+    // Only network/config errors should return false
+    if (error && !error.message.includes('JWT') && !error.message.includes('auth')) {
+      console.warn('Supabase connection test failed:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase connection error:', err);
+    return false;
+  }
+};
 
 export type Database = {
   public: {

@@ -1,47 +1,40 @@
-// K-beauty inspired color palette - soft, clean, elegant
+// Warm, earthy, premium color palette
 export const colors = {
-  // Primary - Soft rose/pink tones
-  primary: '#E8A1B0',
-  primaryDark: '#D4899A',
-  primaryLight: '#F5D0D8',
+  primary: '#9A3412',
+  primaryDark: '#7C2D12',
+  primaryLight: '#C2410C',
   
-  // Secondary - Gentle lavender
-  secondary: '#B8A9C9',
-  secondaryDark: '#9E8CB5',
-  secondaryLight: '#D4CAE0',
+  secondary: '#57534E',
+  secondaryDark: '#44403C',
+  secondaryLight: '#78716C',
   
-  // Accent - Fresh mint/sage
-  accent: '#A8D5BA',
-  accentDark: '#8BC4A3',
-  accentLight: '#C8E6D0',
+  accent: '#9A3412',
+  accentDark: '#7C2D12',
+  accentLight: '#EA580C',
   
-  // Neutrals
   white: '#FFFFFF',
-  offWhite: '#FAFAFA',
-  cream: '#FDF8F5',
-  lightGray: '#F0EDED',
-  gray: '#A0A0A0',
-  darkGray: '#666666',
-  charcoal: '#333333',
-  black: '#1A1A1A',
+  offWhite: '#FAF9F7',
+  cream: '#F5F0EB',
+  lightGray: '#E6E1DB',
+  gray: '#A8A29E',
+  darkGray: '#78716C',
+  charcoal: '#292524',
+  black: '#1C1917',
   
-  // Semantic
-  success: '#7CC47C',
-  warning: '#F5C26B',
-  error: '#E57373',
-  info: '#7BAFD4',
+  background: '#F5F0EB',       // Warm paper/cream
+  cardBackground: '#FFFFFF',   // Clean white cards pop
+  inputBackground: '#EBE6E0',  // Slightly darker cream
   
-  // Background
-  background: '#FDFCFB',
-  cardBackground: '#FFFFFF',
-  inputBackground: '#F8F6F4',
+  success: '#166534',
+  warning: '#A16207',
+  error: '#B91C1C',
+  info: '#1D4ED8',
   
-  // Score colors
-  scoreExcellent: '#7CC47C',
-  scoreGood: '#A8D5BA',
-  scoreFair: '#F5C26B',
-  scorePoor: '#E8A1B0',
-  scoreVeryPoor: '#E57373',
+  scoreExcellent: '#166534',
+  scoreGood: '#4D7C0F',
+  scoreFair: '#A16207',
+  scorePoor: '#C2410C',
+  scoreVeryPoor: '#B91C1C',
 };
 
 export const spacing = {
@@ -101,23 +94,23 @@ export const typography = {
 
 export const shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -137,4 +130,12 @@ export const getOverallScoreColor = (score: number): string => {
   if (score >= 40) return colors.scoreFair;
   if (score >= 20) return colors.scorePoor;
   return colors.scoreVeryPoor;
+};
+
+export const getScoreLabel = (score: number): string => {
+  if (score >= 80) return 'Excellent';
+  if (score >= 60) return 'Good';
+  if (score >= 40) return 'Fair';
+  if (score >= 20) return 'Needs Attention';
+  return 'Critical';
 };

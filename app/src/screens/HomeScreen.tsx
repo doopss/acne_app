@@ -1,73 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Image,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth } from '../lib/auth';
-import { supabase } from '../lib/supabase';
-import { Button, Card, ScoreCircle, ProductCard } from '../components';
-import { colors, spacing, typography, borderRadius, shadows } from '../styles/theme';
-import { Analysis, Product, Recommendation } from '../types';
+import { useFocusEffect } from '@react-navigation/native';
+import { Button, Card, ScoreCircle } from '../components';
+import { storage, StoredAnalysis } from '../lib/storage';
+import { colors, spacing, typography, borderRadius, shadows, getScoreLabel } from '../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export function HomeScreen({ navigation }: Props) {
-  const { user, profile } = useAuth();
-  const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null);
-  const [topProducts, setTopProducts] = useState<(Recommendation & { product: Product })[]>([]);
+  const [lastAnalysis, setLastAnalysis] = useState<StoredAnalysis | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
-    if (!user) return;
-
     try {
-      // Fetch latest analysis
-      const { data: analysisData, error: analysisError } = await supabase
-        .from('analyses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!analysisError && analysisData) {
-        setLatestAnalysis(analysisData);
-
-        // Fetch recommendations for latest analysis
-        const { data: recsData } = await supabase
-          .from('recommendations')
-          .select(`
-            *,
-            product:products(*)
-          `)
-          .eq('analysis_id', analysisData.id)
-          .order('rank', { ascending: true })
-          .limit(3);
-
-        if (recsData) {
-          setTopProducts(recsData as any);
-        }
-      }
+      const analysis = await storage.getLastAnalysis();
+      setLastAnalysis(analysis);
     } catch (error) {
       console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -75,19 +47,11 @@ export function HomeScreen({ navigation }: Props) {
     setRefreshing(false);
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric',
-      year: 'numeric'
     });
   };
 
@@ -96,142 +60,104 @@ export function HomeScreen({ navigation }: Props) {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
         }
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{getGreeting()} ✨</Text>
-            <Text style={styles.welcomeText}>Ready to check your skin?</Text>
+          <View style={styles.logoRow}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoIcon}>✦</Text>
+            </View>
+            <Text style={styles.appName}>ClearSkin</Text>
           </View>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Text style={styles.profileEmoji}>👤</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Scan Button */}
-        <Card style={styles.scanCard} variant="elevated">
-          <View style={styles.scanContent}>
-            <Text style={styles.scanTitle}>Take a Skin Analysis</Text>
-            <Text style={styles.scanDescription}>
-              Get personalized recommendations based on AI analysis of your skin
+        {/* Main CTA Card */}
+        <Card style={styles.ctaCard} variant="elevated">
+          <View style={styles.ctaContent}>
+            <View style={styles.ctaIconContainer}>
+              <Text style={styles.ctaIcon}>📸</Text>
+            </View>
+            <Text style={styles.ctaTitle}>Ready to analyze?</Text>
+            <Text style={styles.ctaDescription}>
+              Take a quick selfie and get instant AI-powered insights about your skin
             </Text>
             <Button
-              title="📸 Start Scan"
+              title="Scan Your Skin"
               onPress={() => navigation.navigate('Camera')}
               size="large"
-              style={styles.scanButton}
+              style={styles.ctaButton}
             />
           </View>
         </Card>
 
-        {/* Latest Analysis */}
-        {latestAnalysis && (
+        {/* Last Analysis */}
+        {lastAnalysis && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Latest Results</Text>
-              <TouchableOpacity 
-                onPress={() => navigation.navigate('Results', { analysisId: latestAnalysis.id })}
-              >
-                <Text style={styles.seeAllLink}>View Details →</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <Card style={styles.resultsCard}>
-              <View style={styles.resultsTop}>
-                <ScoreCircle score={latestAnalysis.overall_score || 0} size={120} />
-                <View style={styles.resultsInfo}>
-                  <Text style={styles.resultsDate}>
-                    {formatDate(latestAnalysis.created_at)}
-                  </Text>
-                  <View style={styles.resultsBadge}>
-                    <Text style={styles.badgeText}>
-                      {latestAnalysis.severity || 'Unknown'} • {latestAnalysis.acne_type || 'Mixed'}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.trackProgressButton}
-                    onPress={() => navigation.navigate('Progress')}
-                  >
-                    <Text style={styles.trackProgressText}>📈 Track Progress</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Card>
-          </View>
-        )}
-
-        {/* No Analysis Yet */}
-        {!latestAnalysis && !loading && (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyEmoji}>🔍</Text>
-            <Text style={styles.emptyTitle}>No Analysis Yet</Text>
-            <Text style={styles.emptyDescription}>
-              Take your first skin scan to get personalized insights and product recommendations
-            </Text>
-          </Card>
-        )}
-
-        {/* Top Recommendations */}
-        {topProducts.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recommended For You</Text>
-              <TouchableOpacity 
-                onPress={() => navigation.navigate('Results', { 
-                  analysisId: latestAnalysis?.id,
-                  scrollTo: 'recommendations'
-                })}
-              >
-                <Text style={styles.seeAllLink}>See All →</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.productsScroll}
+            <Text style={styles.sectionTitle}>Your Last Analysis</Text>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Feedback', { 
+                analysisData: lastAnalysis 
+              })}
             >
-              {topProducts.map((rec) => (
-                <ProductCard
-                  key={rec.id}
-                  product={rec.product}
-                  recommendation={rec}
-                  compact
-                />
-              ))}
-            </ScrollView>
+              <Card style={styles.analysisCard}>
+                <View style={styles.analysisContent}>
+                  <ScoreCircle 
+                    score={lastAnalysis.result.scores.overall} 
+                    size={80} 
+                  />
+                  <View style={styles.analysisInfo}>
+                    <Text style={styles.analysisLabel}>
+                      {getScoreLabel(lastAnalysis.result.scores.overall)}
+                    </Text>
+                    <Text style={styles.analysisDate}>
+                      {formatDate(lastAnalysis.createdAt)}
+                    </Text>
+                    <View style={styles.analysisBadges}>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {lastAnalysis.result.acne_type}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.analysisArrow}>→</Text>
+                </View>
+              </Card>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Quick Tips */}
+        {/* How it works */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Skincare Tips</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tipsScroll}
-          >
-            <Card style={styles.tipCard}>
-              <Text style={styles.tipEmoji}>💧</Text>
-              <Text style={styles.tipTitle}>Stay Hydrated</Text>
-              <Text style={styles.tipText}>Drink 8 glasses of water daily</Text>
-            </Card>
-            <Card style={styles.tipCard}>
-              <Text style={styles.tipEmoji}>🌙</Text>
-              <Text style={styles.tipTitle}>Sleep Well</Text>
-              <Text style={styles.tipText}>7-9 hours helps skin repair</Text>
-            </Card>
-            <Card style={styles.tipCard}>
-              <Text style={styles.tipEmoji}>☀️</Text>
-              <Text style={styles.tipTitle}>Wear SPF</Text>
-              <Text style={styles.tipText}>Protect from sun damage</Text>
-            </Card>
-          </ScrollView>
+          <Text style={styles.sectionTitle}>How it works</Text>
+          <View style={styles.stepsRow}>
+            <View style={styles.stepItem}>
+              <View style={[styles.stepIcon, { backgroundColor: colors.primaryLight }]}>
+                <Text style={styles.stepEmoji}>📸</Text>
+              </View>
+              <Text style={styles.stepLabel}>Scan</Text>
+            </View>
+            <Text style={styles.stepArrow}>→</Text>
+            <View style={styles.stepItem}>
+              <View style={[styles.stepIcon, { backgroundColor: colors.accentLight }]}>
+                <Text style={styles.stepEmoji}>🔬</Text>
+              </View>
+              <Text style={styles.stepLabel}>Analyze</Text>
+            </View>
+            <Text style={styles.stepArrow}>→</Text>
+            <View style={styles.stepItem}>
+              <View style={[styles.stepIcon, { backgroundColor: colors.secondaryLight }]}>
+                <Text style={styles.stepEmoji}>✨</Text>
+              </View>
+              <Text style={styles.stepLabel}>Improve</Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -248,155 +174,149 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  greeting: {
-    ...typography.h2,
-    color: colors.charcoal,
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
-  welcomeText: {
-    ...typography.body,
-    color: colors.gray,
-  },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primaryLight,
+  logoCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileEmoji: {
-    fontSize: 20,
+  logoIcon: {
+    fontSize: 18,
+    color: colors.white,
   },
-  scanCard: {
-    marginBottom: spacing.lg,
-    backgroundColor: colors.primaryLight,
+  appName: {
+    ...typography.h2,
+    color: colors.charcoal,
+    letterSpacing: -0.5,
   },
-  scanContent: {
+  // CTA Card
+  ctaCard: {
+    marginBottom: spacing.xl,
+    backgroundColor: colors.cardBackground,
+  },
+  ctaContent: {
     alignItems: 'center',
     padding: spacing.md,
   },
-  scanTitle: {
-    ...typography.h3,
+  ctaIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  ctaIcon: {
+    fontSize: 40,
+  },
+  ctaTitle: {
+    ...typography.h2,
     color: colors.charcoal,
     marginBottom: spacing.xs,
   },
-  scanDescription: {
-    ...typography.bodySmall,
+  ctaDescription: {
+    ...typography.body,
     color: colors.darkGray,
     textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  scanButton: {
-    width: '100%',
-  },
-  section: {
     marginBottom: spacing.lg,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
+  ctaButton: {
+    width: '100%',
+  },
+  // Section
+  section: {
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
     ...typography.h3,
     color: colors.charcoal,
+    marginBottom: spacing.md,
   },
-  seeAllLink: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  resultsCard: {
+  // Analysis Card
+  analysisCard: {
     padding: spacing.md,
   },
-  resultsTop: {
+  analysisContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  resultsInfo: {
+  analysisInfo: {
     flex: 1,
     marginLeft: spacing.md,
   },
-  resultsDate: {
+  analysisLabel: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.charcoal,
+  },
+  analysisDate: {
     ...typography.bodySmall,
     color: colors.gray,
     marginBottom: spacing.xs,
   },
-  resultsBadge: {
+  analysisBadges: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  badge: {
     backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: 2,
     borderRadius: borderRadius.full,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.sm,
   },
   badgeText: {
     ...typography.caption,
     color: colors.primaryDark,
     textTransform: 'capitalize',
+    fontWeight: '500',
   },
-  trackProgressButton: {
-    backgroundColor: colors.secondary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    alignSelf: 'flex-start',
+  analysisArrow: {
+    ...typography.h2,
+    color: colors.gray,
   },
-  trackProgressText: {
-    ...typography.bodySmall,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  emptyCard: {
+  // Steps
+  stepsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
+    justifyContent: 'center',
+    backgroundColor: colors.cardBackground,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.sm,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: spacing.md,
+  stepItem: {
+    alignItems: 'center',
   },
-  emptyTitle: {
+  stepIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  stepEmoji: {
+    fontSize: 28,
+  },
+  stepLabel: {
+    ...typography.bodySmall,
+    fontWeight: '500',
+    color: colors.charcoal,
+  },
+  stepArrow: {
     ...typography.h3,
-    color: colors.charcoal,
-    marginBottom: spacing.xs,
-  },
-  emptyDescription: {
-    ...typography.body,
-    color: colors.gray,
-    textAlign: 'center',
-  },
-  productsScroll: {
-    paddingRight: spacing.lg,
-  },
-  tipsScroll: {
-    paddingRight: spacing.lg,
-    gap: spacing.sm,
-  },
-  tipCard: {
-    width: 140,
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  tipEmoji: {
-    fontSize: 32,
-    marginBottom: spacing.xs,
-  },
-  tipTitle: {
-    ...typography.bodySmall,
-    fontWeight: '600',
-    color: colors.charcoal,
-    marginBottom: 2,
-  },
-  tipText: {
-    ...typography.caption,
-    color: colors.gray,
-    textAlign: 'center',
+    color: colors.lightGray,
+    marginHorizontal: spacing.md,
   },
 });

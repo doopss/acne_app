@@ -1,17 +1,4 @@
-export interface UserProfile {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  pain_point: PainPoint | null;
-  budget_tier: BudgetTier | null;
-  beauty_philosophy: BeautyPhilosophy | null;
-  skin_type: SkinType | null;
-  is_premium: boolean;
-  subscription_ends_at: string | null;
-  total_analyses: number;
-  last_analysis_at: string | null;
-}
-
+// User preferences types
 export type PainPoint = 
   | 'persistent_breakouts'
   | 'scarring'
@@ -31,10 +18,30 @@ export type BeautyPhilosophy =
 
 export type SkinType = 'oily' | 'dry' | 'combination' | 'sensitive';
 
+// Analysis types
 export type AcneType = 'inflammatory' | 'comedonal' | 'cystic' | 'mixed';
 
 export type Severity = 'mild' | 'moderate' | 'severe';
 
+export interface AnalysisResult {
+  acne_type: AcneType;
+  severity: Severity;
+  distribution: Record<string, number>;
+  scores: {
+    hydration: number;
+    texture: number;
+    inflammation: number;
+    clarity: number;
+    pores: number;
+    dark_spots: number;
+    overall: number;
+  };
+  confidence: number;
+  recommendations: string[];
+  summary: string;
+}
+
+// Product types
 export interface Product {
   id: string;
   name: string;
@@ -55,9 +62,23 @@ export interface Product {
   effectiveness_rating: number | null;
 }
 
+export interface Recommendation {
+  id: string;
+  analysis_id: string;
+  product_id: string;
+  rank: number;
+  reasoning: string | null;
+  usage_instructions: string | null;
+  expected_results: string | null;
+  routine_step: number | null;
+  time_of_day: string[] | null;
+  product?: Product;
+}
+
+// Legacy types (kept for potential Supabase integration)
 export interface Analysis {
   id: string;
-  user_id: string;
+  user_id?: string;
   created_at: string;
   photo_url: string;
   photo_storage_path: string;
@@ -75,48 +96,4 @@ export interface Analysis {
   ai_model: string | null;
   ai_confidence: number | null;
   recommendations_count: number;
-}
-
-export interface Recommendation {
-  id: string;
-  analysis_id: string;
-  product_id: string;
-  rank: number;
-  reasoning: string | null;
-  usage_instructions: string | null;
-  expected_results: string | null;
-  routine_step: number | null;
-  time_of_day: string[] | null;
-  product?: Product;
-}
-
-export interface ProgressTracking {
-  id: string;
-  user_id: string;
-  created_at: string;
-  baseline_analysis_id: string | null;
-  followup_analysis_id: string | null;
-  improvement_percentage: number | null;
-  areas_improved: string[] | null;
-  areas_worsened: string[] | null;
-  progress_summary: string | null;
-  recommendations_adjustment: string | null;
-}
-
-export interface AnalysisResult {
-  acne_type: AcneType;
-  severity: Severity;
-  distribution: Record<string, number>;
-  scores: {
-    hydration: number;
-    texture: number;
-    inflammation: number;
-    clarity: number;
-    pores: number;
-    dark_spots: number;
-    overall: number;
-  };
-  confidence: number;
-  recommendations: string[];
-  summary: string;
 }
